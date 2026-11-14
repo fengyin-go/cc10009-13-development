@@ -14,6 +14,7 @@ const Pipeline = () => import('@/views/pipeline/index.vue')
 const Validator = () => import('@/views/validator/index.vue')
 const Storage = () => import('@/views/storage/index.vue')
 const Monitor = () => import('@/views/monitor/index.vue')
+const MonitorLedger = () => import('@/views/monitor-ledger/index.vue')
 const Cleanse = () => import('@/views/cleanse/index.vue')
 const Delta = () => import('@/views/delta/index.vue')
 const Export = () => import('@/views/export/index.vue')
@@ -37,6 +38,7 @@ const router = createRouter({
     { path: '/validator', name: 'validator', component: Validator },
     { path: '/storage', name: 'storage', component: Storage },
     { path: '/monitor', name: 'monitor', component: Monitor },
+    { path: '/monitor-ledger', name: 'monitor-ledger', component: MonitorLedger },
     { path: '/cleanse', name: 'cleanse', component: Cleanse },
     { path: '/delta', name: 'delta', component: Delta },
     { path: '/export', name: 'export', component: Export },

@@ -1,5 +1,6 @@
 import { MODULE_BY_KEY } from '@/data/modules'
 import { allRows, listRows, resetRows, saveRows } from '@/data/local-store'
+import { recordTaskTransition, resetMonitorRuntime } from '@/api/monitor-service'
 import type { ActionResult, EntryRow, ModuleMeta, OverviewResult, PageResult } from '@/data/types'
 
 // 会写进数据的「往回走」动作：命中就把这条记录标成异常态，看板上能一眼看出来。
@@ -53,11 +54,19 @@ export function runAction(key: string, id: number, action: string): ActionResult
   const next = [...rows]
   next[index] = updated
   saveRows(key, next)
+  // 采集任务状态变化同时写入采集监控的待处理台账；台账持久化，刷新后仍在。
+  if (key === 'spider') {
+    recordTaskTransition(String(rows[index]['作业编号'] ?? `SPID-${id}`), current, target, action)
+  }
   return { ok: true, message: `${meta.entity}已${action}，当前状态「${target}」` }
 }
 
 export function resetModule(key: string): PageResult {
   resetRows(key)
+  if (key === 'monitor') {
+    // 监控运行态与配置行一起回到示例数据，避免旧时间窗挂在新配置上。
+    resetMonitorRuntime()
+  }
   return listEntries(key)
 }
 

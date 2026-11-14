@@ -24,6 +24,39 @@
       </span>
     </p>
 
+    <h3 class="section-title">采集结果按任务汇总</h3>
+    <p class="section-hint">
+      按指标时间窗的当前快照汇总，与采集监控页的异常量口径一致；缺失时间戳的结果单独计数，不按 0 值并入窗口。
+    </p>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>作业编号</th>
+          <th>指标时间窗数</th>
+          <th>采集量</th>
+          <th>成功量</th>
+          <th>异常量</th>
+          <th>缺失时间戳结果</th>
+          <th>最近观测时间</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="item in taskSummaries" :key="item.taskCode">
+          <td>{{ item.taskCode }}</td>
+          <td>{{ item.windowCount }}</td>
+          <td>{{ item.collected }}</td>
+          <td>{{ item.success }}</td>
+          <td>{{ item.abnormal }}</td>
+          <td>{{ item.missingTimestampCount }}</td>
+          <td>{{ item.lastObservedAt ? formatStamp(item.lastObservedAt) : '—' }}</td>
+        </tr>
+        <tr v-if="!taskSummaries.length">
+          <td colspan="7" class="empty-state">还没有采集结果，监控指标收到数据后会汇总到这里</td>
+        </tr>
+      </tbody>
+    </table>
+    <p v-if="transitionNote" class="notice-bar">{{ transitionNote }}</p>
+
     <form class="filter-bar" @submit.prevent="reload">
       <label v-for="field in filterFields" :key="field" class="filter-item">
         <span>{{ field }}</span>
@@ -79,6 +112,7 @@ import {
   moduleMeta,
   runAction as applyAction,
 } from '@/api/local-service'
+import { listTaskResults } from '@/api/monitor-service'
 import type { EntryRow } from '@/data/types'
 
 const meta = moduleMeta('spider')
@@ -87,6 +121,8 @@ const actions = ["提交执行", "启动采集", "终止采集", "归档结果"]
 const statuses = ["草稿", "待执行", "运行中", "已完成", "已失败"]
 const stats = [{"label": "采集作业总数", "value": 0}, {"label": "运行中作业", "value": 0}, {"label": "已完成作业", "value": 0}]
 
+const taskSummaries = ref<ReturnType<typeof listTaskResults>>([])
+const transitionNote = ref('')
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
 const errorMessage = ref('')
@@ -112,13 +148,24 @@ function openCreate() {
   errorMessage.value = '采集作业登记入口尚未接入审批流'
 }
 
+function formatStamp(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+  const pad = (input: number) => (input < 10 ? `0${input}` : String(input))
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 function runAction(action: string, row: EntryRow) {
   errorMessage.value = ''
+  transitionNote.value = ''
   const result = applyAction(meta.key, Number(row.id), action)
   if (!result.ok) {
     errorMessage.value = result.message
     return
   }
+  transitionNote.value = `${result.message}；已写入采集监控的待处理台账`
   reload()
 }
 
@@ -128,6 +175,7 @@ function reload() {
     const payload = listEntries(meta.key, filters.value)
     rows.value = payload.items
     total.value = payload.total
+    taskSummaries.value = listTaskResults()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '采集任务列表读取失败'
   }
